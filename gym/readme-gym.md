@@ -18,7 +18,7 @@ Install the [D4RL repo](https://github.com/rail-berkeley/d4rl), following the in
 Then, run the following script in order to download the datasets and save them in our format:
 
 ```
-python download_d4rl_datasets.py
+python data.download_d4rl_datasets.py
 ```
 
 ## Example usage

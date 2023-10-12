@@ -28,10 +28,27 @@ pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --e
 source dectransformer.sh
 conda activate decision-transformer-atari
 
+
+
+# Atari
 python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 5 --model_type 'reward_conditioned' --num_steps 500000 --num_buffers 50 --game 'Breakout' --batch_size 128 --data_dir_prefix ./dqn_replay
 
 
-python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 1 --model_type 'reward_conditioned' --num_steps 500 --num_buffers 50 --game 'Breakout' --batch_size 128 --data_dir_prefix ./dqn_replay
+python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 1 --model_type 'reward_conditioned' --num_steps 5000 --num_buffers 50 --game 'Breakout' --batch_size 128 --data_dir_prefix ./dqn_replay
+
+
+
+# Gym
+~/.mujocp and ~/.d4rl directories to be set up. Then
+Please add following line(s) to .bashrc:
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/timityjoe/.mujoco/mujoco210/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/nvidia
+
+python3 experiment.py --env hopper --dataset medium --model_type dt -w
+
+
+
+
 
 
 

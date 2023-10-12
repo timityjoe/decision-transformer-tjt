@@ -1,5 +1,8 @@
 import csv
-import logging
+
+# import logging
+from loguru import logger
+
 # make deterministic
 from mingpt.utils import set_seed
 import numpy as np
@@ -20,8 +23,8 @@ import argparse
 from create_dataset import create_dataset
 
 # Check Torch CUDA
-print("Torch Version:",torch.__version__)
-print("Is CUDA Supportive ?",torch.cuda.is_available())
+logger.info("Torch Version:",torch.__version__)
+logger.info("Is CUDA Supported ?",torch.cuda.is_available())
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--seed', type=int, default=123)
@@ -36,9 +39,9 @@ parser.add_argument('--block_size', type=int, default=90)
 # 
 parser.add_argument('--trajectories_per_buffer', type=int, default=10, help='Number of trajectories to sample from each of the buffers.')
 parser.add_argument('--data_dir_prefix', type=str, default='./dqn_replay/')
-parser.add_argument('--log_level', type=str, default='WARNING')
+# parser.add_argument('--log_level', type=str, default='WARNING')
 args = parser.parse_args()
-print(args)
+logger.info(args)
 
 set_seed(args.seed)
 
@@ -73,54 +76,55 @@ class StateActionReturnDataset(Dataset):
 
         return states, actions, rtgs, timesteps # starting timesteps are not trained
 
+logger.info("0) Create_dataset")
 obss, actions, returns, done_idxs, rtgs, timesteps = create_dataset(args.num_buffers, args.num_steps, args.game, args.data_dir_prefix, args.trajectories_per_buffer)
 
 
 # Get logging level
-if args.log_level == 'DEBUG':
-    logging_level = logging.DEBUG
-elif args.log_level == 'INFO':
-    logging_level = logging.INFO
-elif args.log_level == 'WARNING':
-    logging_level = logging.WARNING
-elif args.log_level == 'ERROR':
-    logging_level = logging.ERROR
-elif args.log_level == 'CRITICAL':
-    logging_level = logging.CRITICAL
-else:
-    raise Exception("Unkown logging level")
+# if args.log_level == 'DEBUG':
+#     logging_level = logging.DEBUG
+# elif args.log_level == 'INFO':
+#     logging_level = logging.INFO
+# elif args.log_level == 'WARNING':
+#     logging_level = logging.WARNING
+# elif args.log_level == 'ERROR':
+#     logging_level = logging.ERROR
+# elif args.log_level == 'CRITICAL':
+#     logging_level = logging.CRITICAL
+# else:
+#     raise Exception("Unkown logging level")
 
 # set up logging
-logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        # level=logging.INFO,
-        level=logging_level,
-)
+# logging.basicConfig(
+#         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+#         datefmt="%m/%d/%Y %H:%M:%S",
+#         # level=logging.INFO,
+#         level=logging_level,
+# )
 
-print("1) Begin generating train_dataset")
+logger.info("1) Begin generating train_dataset")
 train_dataset = StateActionReturnDataset(obss, args.context_length*3, actions, done_idxs, rtgs, timesteps)
-# print("Finish generation")
+# logger.info("Finish generation")
 
-print("2) Begin GPT configuartion.")
+logger.info("2) Begin GPT configuartion.")
 mconf = GPTConfig(train_dataset.vocab_size, train_dataset.block_size, n_layer=6, n_head=8, n_embd=128, model_type=args.model_type, max_timestep=max(timesteps))
 
-print("3) End GPT config, begin model generation")
+logger.info("3) End GPT config, begin model generation")
 model = GPT(mconf)
 
 
 # initialize a trainer instance and kick off training
 epochs = args.epochs
 
-print("4) Begin Trainer configuartion")
+logger.info("4) Begin Trainer configuartion")
 tconf = TrainerConfig(max_epochs=epochs, batch_size=args.batch_size, learning_rate=6e-4,
                       lr_decay=True, warmup_tokens=512*20, final_tokens=2*len(train_dataset)*args.context_length*3,
                       num_workers=4, seed=args.seed, model_type=args.model_type, game=args.game, max_timestep=max(timesteps))
 
-print("5) End trainer configuration, begin trainer generation")
+logger.info("5) End trainer configuration, begin trainer generation")
 trainer = Trainer(model, train_dataset, None, tconf)
 
-print("6) End trainer generation. Begin training.")
+logger.info("6) End trainer generation. Begin training.")
 trainer.train()
 
-print("7) End Training!")
+logger.info("7) End Training!")

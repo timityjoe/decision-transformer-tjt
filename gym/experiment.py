@@ -14,6 +14,8 @@ from decision_transformer.models.mlp_bc import MLPBCModel
 from decision_transformer.training.act_trainer import ActTrainer
 from decision_transformer.training.seq_trainer import SequenceTrainer
 
+from loguru import logger
+from tqdm import tqdm
 
 def discount_cumsum(x, gamma):
     discount_cumsum = np.zeros_like(x)
@@ -27,6 +29,7 @@ def experiment(
         exp_prefix,
         variant,
 ):
+    logger.info("1)Start experiment...")
     device = variant.get('device', 'cuda')
     log_to_wandb = variant.get('log_to_wandb', False)
 
@@ -64,8 +67,11 @@ def experiment(
 
     state_dim = env.observation_space.shape[0]
     act_dim = env.action_space.shape[0]
+    logger.info(f"2) state_dim:{state_dim} act_dim:{act_dim}")
+
 
     # load dataset
+    logger.info("3) load dataset")
     dataset_path = f'data/{env_name}-{dataset}-v2.pkl'
     with open(dataset_path, 'rb') as f:
         trajectories = pickle.load(f)
@@ -83,6 +89,7 @@ def experiment(
     traj_lens, returns = np.array(traj_lens), np.array(returns)
 
     # used for input normalization
+    logger.info("4) Input normalization")
     states = np.concatenate(states, axis=0)
     state_mean, state_std = np.mean(states, axis=0), np.std(states, axis=0) + 1e-6
 
@@ -101,6 +108,7 @@ def experiment(
     pct_traj = variant.get('pct_traj', 1.)
 
     # only train on top pct_traj trajectories (for %BC experiment)
+    logger.info("5) Training on top pct_traj trajectories")
     num_timesteps = max(int(pct_traj*num_timesteps), 1)
     sorted_inds = np.argsort(returns)  # lowest to highest
     num_trajectories = 1
@@ -114,8 +122,11 @@ def experiment(
 
     # used to reweight sampling so we sample according to timesteps instead of trajectories
     p_sample = traj_lens[sorted_inds] / sum(traj_lens[sorted_inds])
+    logger.info("6) Reweight sampling p_sample:{p_sample}")
 
     def get_batch(batch_size=256, max_len=K):
+        # logger.info("get_batch()")
+
         batch_inds = np.random.choice(
             np.arange(num_trajectories),
             size=batch_size,
@@ -124,6 +135,7 @@ def experiment(
         )
 
         s, a, r, d, rtg, timesteps, mask = [], [], [], [], [], [], []
+        # for i in tqdm(range(batch_size)):
         for i in range(batch_size):
             traj = trajectories[int(sorted_inds[batch_inds[i]])]
             si = random.randint(0, traj['rewards'].shape[0] - 1)
@@ -164,6 +176,8 @@ def experiment(
         return s, a, r, d, rtg, timesteps, mask
 
     def eval_episodes(target_rew):
+        logger.info("eval_episodes()")
+
         def fn(model):
             returns, lengths = [], []
             for _ in range(num_eval_episodes):
@@ -266,6 +280,7 @@ def experiment(
         )
 
     if log_to_wandb:
+        logger.info("log_to_wandb(YES)")
         wandb.init(
             name=exp_prefix,
             group=group_name,

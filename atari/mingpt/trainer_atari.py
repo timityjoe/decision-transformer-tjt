@@ -24,6 +24,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 
+import time
 # logger = logging.getLogger(__name__)
 from loguru import logger
 # logger.remove()
@@ -192,7 +193,7 @@ class Trainer:
                 raise NotImplementedError()
 
     def get_returns(self, ret):
-        logger.debug(f"get_returns ret:{ret}")
+        logger.debug(f" Validating - get_returns() ret:{ret}")
         self.model.train(False)
         args=Args(self.config.game.lower(), self.config.seed)
         env = Env(args)
@@ -216,6 +217,13 @@ class Trainer:
             while True:
                 if done:
                     state, reward_sum, done = env.reset(), 0, False
+
+                #-----------------------------------------
+                # Mod by Tim: Render to see whats going on..
+                time.sleep(0.1) # Slow the sim
+                env.render()
+                #-----------------------------------------
+
                 action = sampled_action.cpu().numpy()[0,-1]
                 actions += [sampled_action]
                 state, reward, done = env.step(action)
