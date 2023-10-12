@@ -77,6 +77,12 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
 
     def forward(self, x, layer_past=None):
+        '''
+        x, (batch, seq_length, n_embd). During training, seq_length = 3*ctx_length (all actions are included).
+        During testing, it is 3*min{ctx_length, t}-1 (the action to predict is not given). \n
+        Predict all next tokens. If x is sequence 0:T-1, then it outputs prediction for 1:T
+        Use masks so that only previous tokens can be used to predict a token   
+        '''
         B, T, C = x.size()
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -86,7 +92,7 @@ class CausalSelfAttention(nn.Module):
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))
+        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))  # Mask future tokens
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
         y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
@@ -145,7 +151,9 @@ class GPT(nn.Module):
 
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
 
-
+        # The state_encoder network works for any dim0 value (which is the batch size), 
+        # dim0 value is kept throughout the network
+        # Output dim is (input_dim0, config.n_embd)
         self.state_encoder = nn.Sequential(nn.Conv2d(4, 32, 8, stride=4, padding=0), nn.ReLU(),
                                  nn.Conv2d(32, 64, 4, stride=2, padding=0), nn.ReLU(),
                                  nn.Conv2d(64, 64, 3, stride=1, padding=0), nn.ReLU(),
@@ -224,6 +232,10 @@ class GPT(nn.Module):
         # rtgs: (batch, block_size, 1)
         # timesteps: (batch, 1, 1)
 
+        '''
+        states: The shape of states may vary in different scenarios. 
+        When called in utils.sample(), x_cond is of shape (1,<=ctx_length, 4, 84,84)
+        '''
         state_embeddings = self.state_encoder(states.reshape(-1, 4, 84, 84).type(torch.float32).contiguous()) # (batch * block_size, n_embd)
         state_embeddings = state_embeddings.reshape(states.shape[0], states.shape[1], self.config.n_embd) # (batch, block_size, n_embd)
         

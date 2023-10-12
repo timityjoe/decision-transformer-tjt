@@ -24,7 +24,12 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
+from loguru import logger
+# logger.remove()
+# logger.add(sys.stdout, level="INFO")
+# logger.add(sys.stdout, level="SUCCESS")
+# logger.add(sys.stdout, level="WARNING")
 
 from mingpt.utils import sample
 import atari_py
@@ -57,29 +62,34 @@ class TrainerConfig:
 class Trainer:
 
     def __init__(self, model, train_dataset, test_dataset, config):
-        self.model = model
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
+        self.model = model # should be a GPT model
+        self.train_dataset = train_dataset # Comes from run_dt_atari.py, a class called StateActionReturnDataset, son of torch Dataset
+        self.test_dataset = test_dataset # Should be None
         self.config = config
 
         # take over whatever gpus are on the system
         self.device = 'cpu'
         if torch.cuda.is_available():
+            logger.info("GPU available.")
             self.device = torch.cuda.current_device()
+            logger.info(f"device={self.device}")
             self.model = torch.nn.DataParallel(self.model).to(self.device)
 
     def save_checkpoint(self):
+        logger.debug("")
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         logger.info("saving %s", self.config.ckpt_path)
         # torch.save(raw_model.state_dict(), self.config.ckpt_path)
 
     def train(self):
+        logger.debug("")
         model, config = self.model, self.config
         raw_model = model.module if hasattr(self.model, "module") else model
         optimizer = raw_model.configure_optimizers(config)
 
         def run_epoch(split, epoch_num=0):
+            logger.debug("")
             is_train = split == 'train'
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
@@ -90,7 +100,12 @@ class Trainer:
             losses = []
             pbar = tqdm(enumerate(loader), total=len(loader)) if is_train else enumerate(loader)
             for it, (x, y, r, t) in pbar:
-
+                '''
+                x is states
+                y is actions
+                r is rtgs
+                t is timesteps
+                '''
                 # place data on the correct device
                 x = x.to(self.device)
                 y = y.to(self.device)
@@ -100,7 +115,7 @@ class Trainer:
                 # forward the model
                 with torch.set_grad_enabled(is_train):
                     # logits, loss = model(x, y, r)
-                    logits, loss = model(x, y, y, r, t)
+                    logits, loss = model(x, y, y, r, t)  # the third parameter is targets
                     loss = loss.mean() # collapse all losses if they are scattered on multiple gpus
                     losses.append(loss.item())
 
@@ -129,7 +144,7 @@ class Trainer:
                         lr = config.learning_rate
 
                     # report progress
-                    pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. lr {lr:e}")
+                    pbar.set_description(f"epoch {epoch+1} iter {it}: train loss {loss.item():.5f}. learn rate {lr:e}")
 
             if not is_train:
                 test_loss = float(np.mean(losses))
@@ -156,15 +171,20 @@ class Trainer:
 
             # -- pass in target returns
             if self.config.model_type == 'naive':
+                logger.info("naive")
                 eval_return = self.get_returns(0)
             elif self.config.model_type == 'reward_conditioned':
                 if self.config.game == 'Breakout':
+                    logger.info("Breakout")
                     eval_return = self.get_returns(90)
                 elif self.config.game == 'Seaquest':
+                    logger.info("Seaquest")
                     eval_return = self.get_returns(1150)
                 elif self.config.game == 'Qbert':
+                    logger.info("Qbert")
                     eval_return = self.get_returns(14000)
                 elif self.config.game == 'Pong':
+                    logger.info("Pong")
                     eval_return = self.get_returns(20)
                 else:
                     raise NotImplementedError()
@@ -172,6 +192,7 @@ class Trainer:
                 raise NotImplementedError()
 
     def get_returns(self, ret):
+        logger.debug(f"get_returns ret:{ret}")
         self.model.train(False)
         args=Args(self.config.game.lower(), self.config.seed)
         env = Env(args)
@@ -181,6 +202,7 @@ class Trainer:
         done = True
         for i in range(10):
             state = env.reset()
+            logger.info(f"Shape of initial state is {state.shape}, i={i}")
             state = state.type(torch.float32).to(self.device).unsqueeze(0).unsqueeze(0)
             rtgs = [ret]
             # first state is from env, first rtg is target return, and first timestep is 0
@@ -204,9 +226,9 @@ class Trainer:
                     T_rewards.append(reward_sum)
                     break
 
-                state = state.unsqueeze(0).unsqueeze(0).to(self.device)
+                state = state.unsqueeze(0).unsqueeze(0).to(self.device) # expand to shape (1,1,4,84,84)
 
-                all_states = torch.cat([all_states, state], dim=0)
+                all_states = torch.cat([all_states, state], dim=0) # (num_states,1,4,84,84)
 
                 rtgs += [rtgs[-1] - reward]
                 # all_states has all previous states and rtgs has all previous rtgs (will be cut to block_size in utils.sample)
@@ -217,12 +239,18 @@ class Trainer:
                     timesteps=(min(j, self.config.max_timestep) * torch.ones((1, 1, 1), dtype=torch.int64).to(self.device)))
         env.close()
         eval_return = sum(T_rewards)/10.
-        print("target return: %d, eval return: %d" % (ret, eval_return))
+        logger.info("target return: %d, eval return: %d" % (ret, eval_return))
         self.model.train(True)
         return eval_return
 
 
 class Env():
+    '''
+    Some concepts:\n
+    - Frame: 84*84, the image of the game
+    - Observation: 84*84, can be a frame, or derived from several frames
+    - State: 4*84*84, 4 consecutive observations
+    '''
     def __init__(self, args):
         self.device = args.device
         self.ale = atari_py.ALEInterface()
@@ -233,7 +261,7 @@ class Env():
         self.ale.setBool('color_averaging', False)
         self.ale.loadROM(atari_py.get_game_path(args.game))  # ROM loading must be done after setting options
         actions = self.ale.getMinimalActionSet()
-        self.actions = dict([i, e] for i, e in zip(range(len(actions)), actions))
+        self.actions = dict([i, e] for i, e in zip(range(len(actions)), actions)) # A dictionary from index mapping to action token
         self.lives = 0  # Life counter (used in DeepMind training)
         self.life_termination = False  # Used to check if resetting only from loss of life
         self.window = args.history_length  # Number of frames to concatenate
@@ -242,7 +270,7 @@ class Env():
 
     def _get_state(self):
         state = cv2.resize(self.ale.getScreenGrayscale(), (84, 84), interpolation=cv2.INTER_LINEAR)
-        return torch.tensor(state, dtype=torch.float32, device=self.device).div_(255)
+        return torch.tensor(state, dtype=torch.float32, device=self.device).div_(255) # Normalization
 
     def _reset_buffer(self):
         for _ in range(self.window):

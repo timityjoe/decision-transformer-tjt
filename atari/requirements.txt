@@ -1,0 +1,8 @@
+tqdm
+atari_py
+Pillow
+blosc
+dopamine
+tensorflow
+dopaminekit # NOT dopamine!
+torch
