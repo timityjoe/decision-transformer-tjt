@@ -1,6 +1,6 @@
 import csv
 
-# import logging
+import logging
 from loguru import logger
 
 # make deterministic
@@ -39,7 +39,7 @@ parser.add_argument('--block_size', type=int, default=90)
 # 
 parser.add_argument('--trajectories_per_buffer', type=int, default=10, help='Number of trajectories to sample from each of the buffers.')
 parser.add_argument('--data_dir_prefix', type=str, default='./dqn_replay/')
-# parser.add_argument('--log_level', type=str, default='WARNING')
+parser.add_argument('--log_level', type=str, default='WARNING')
 args = parser.parse_args()
 logger.info(args)
 
@@ -81,26 +81,26 @@ obss, actions, returns, done_idxs, rtgs, timesteps = create_dataset(args.num_buf
 
 
 # Get logging level
-# if args.log_level == 'DEBUG':
-#     logging_level = logging.DEBUG
-# elif args.log_level == 'INFO':
-#     logging_level = logging.INFO
-# elif args.log_level == 'WARNING':
-#     logging_level = logging.WARNING
-# elif args.log_level == 'ERROR':
-#     logging_level = logging.ERROR
-# elif args.log_level == 'CRITICAL':
-#     logging_level = logging.CRITICAL
-# else:
-#     raise Exception("Unkown logging level")
+if args.log_level == 'DEBUG':
+    logging_level = logging.DEBUG
+elif args.log_level == 'INFO':
+    logging_level = logging.INFO
+elif args.log_level == 'WARNING':
+    logging_level = logging.WARNING
+elif args.log_level == 'ERROR':
+    logging_level = logging.ERROR
+elif args.log_level == 'CRITICAL':
+    logging_level = logging.CRITICAL
+else:
+    raise Exception("Unkown logging level")
 
 # set up logging
-# logging.basicConfig(
-#         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-#         datefmt="%m/%d/%Y %H:%M:%S",
-#         # level=logging.INFO,
-#         level=logging_level,
-# )
+logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        # level=logging.INFO,
+        level=logging_level,
+)
 
 logger.info("1) Begin generating train_dataset")
 train_dataset = StateActionReturnDataset(obss, args.context_length*3, actions, done_idxs, rtgs, timesteps)

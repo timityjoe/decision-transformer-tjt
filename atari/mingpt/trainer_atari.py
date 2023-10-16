@@ -176,17 +176,17 @@ class Trainer:
                 eval_return = self.get_returns(0)
             elif self.config.model_type == 'reward_conditioned':
                 if self.config.game == 'Breakout':
-                    logger.info("Breakout")
                     eval_return = self.get_returns(90)
+                    logger.info(f"Breakout: eval_return:{eval_return}")
                 elif self.config.game == 'Seaquest':
-                    logger.info("Seaquest")
                     eval_return = self.get_returns(1150)
+                    logger.info(f"Seaquest: eval_return:{eval_return}")
                 elif self.config.game == 'Qbert':
-                    logger.info("Qbert")
                     eval_return = self.get_returns(14000)
+                    logger.info(f"Qbert: eval_return:{eval_return}")
                 elif self.config.game == 'Pong':
-                    logger.info("Pong")
                     eval_return = self.get_returns(20)
+                    logger.info(f"Pong: eval_return:{eval_return}")
                 else:
                     raise NotImplementedError()
             else:
@@ -220,7 +220,8 @@ class Trainer:
 
                 #-----------------------------------------
                 # Mod by Tim: Render to see whats going on..
-                time.sleep(0.1) # Slow the sim
+                # Slow the sim
+                # time.sleep(0.1) 
                 env.render()
                 #-----------------------------------------
 

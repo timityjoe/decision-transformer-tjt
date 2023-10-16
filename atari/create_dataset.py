@@ -19,6 +19,8 @@ import blosc
 import argparse
 from fixed_replay_buffer import FixedReplayBuffer
 
+from loguru import logger
+
 def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_per_buffer):
     # -- load data from memory (make more efficient)
     obss = []
@@ -44,7 +46,7 @@ def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_p
             batch_size=32,
             replay_capacity=100000)
         if frb._loaded_buffers:
-            print(f"len(obss):{len(obss)} num_steps:{num_steps}")
+            # print(f"len(obss):{len(obss)} num_steps:{num_steps}")
 
             done = False
             curr_num_transitions = len(obss)
@@ -79,6 +81,8 @@ def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_p
     returns = np.array(returns)
     stepwise_returns = np.array(stepwise_returns)
     done_idxs = np.array(done_idxs)
+    # print(f"actions:{actions} returns:{returns} stepwise_returns:{stepwise_returns}: done_idxs{done_idxs}")
+
 
     # -- create reward-to-go dataset
     start_index = 0
