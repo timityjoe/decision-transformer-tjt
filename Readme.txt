@@ -22,8 +22,9 @@ conda install -c nvidia cudnn
 
 # Torch not compiled with CUDA enabled ubuntu
 # https://www.datasciencelearner.com/assertionerror-torch-not-compiled-with-cuda-enabled-fix/
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-
+# pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+pip install --upgrade pip
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113^C
 
 
 # Download datasets. Install GSutil 1st
@@ -37,13 +38,18 @@ gsutil -m cp -R gs://atari-replay-datasets/dqn/Seaquest ./dqn_replay
 source dectransformer.sh
 conda activate decision-transformer-atari
 
+# Install Atari ROM:
+# https://github.com/openai/atari-py#roms
+python -m atari_py.import_roms <path to folder>
+python -m atari_py.import_roms ROMS
+python -m atari_py.import_roms HC_ROMS
 
 
 # Atari
 python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 5 --model_type 'reward_conditioned' --num_steps 500000 --num_buffers 50 --game 'Breakout' --batch_size 128  --log_level CRITICAL --data_dir_prefix ./dqn_replay
 
 
-python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 1 --model_type 'reward_conditioned' --num_steps 5000 --num_buffers 50 --game 'Breakout' --batch_size 128  --log_level CRITICAL --data_dir_prefix ./dqn_replay
+python3 run_dt_atari.py --seed 123 --block_size 90 --epochs 1 --model_type 'reward_conditioned' --num_steps 500 --num_buffers 50 --game 'Breakout' --batch_size 128  --log_level CRITICAL --data_dir_prefix ./dqn_replay
 
 
 

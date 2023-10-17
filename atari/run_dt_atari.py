@@ -1,4 +1,8 @@
 import csv
+# Original implementation from
+# https://github.com/kzl/decision-transformer/tree/master
+# Paper
+# https://arxiv.org/pdf/2106.01345.pdf
 
 import logging
 from loguru import logger
