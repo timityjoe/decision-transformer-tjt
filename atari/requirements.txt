@@ -2,7 +2,10 @@ tqdm
 atari_py
 Pillow
 blosc
-dopamine
 tensorflow
+# torch
+
+loguru
+opencv-python
+git+https://github.com/google/dopamine.git
 dopaminekit # NOT dopamine!
-torch
