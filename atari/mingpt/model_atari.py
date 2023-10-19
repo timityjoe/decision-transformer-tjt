@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 import numpy as np
 
+from loguru import logger
+
 class GELU(nn.Module):
     def forward(self, input):
         return F.gelu(input)
@@ -59,6 +61,7 @@ class CausalSelfAttention(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        # logger.info(f"__init__")
         assert config.n_embd % config.n_head == 0
         # key, query, value projections for all heads
         self.key = nn.Linear(config.n_embd, config.n_embd)
@@ -77,6 +80,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
 
     def forward(self, x, layer_past=None):
+        # logger.info(f"forward")
         '''
         x, (batch, seq_length, n_embd). During training, seq_length = 3*ctx_length (all actions are included).
         During testing, it is 3*min{ctx_length, t}-1 (the action to predict is not given). \n
@@ -100,6 +104,10 @@ class CausalSelfAttention(nn.Module):
 
         # output projection
         y = self.resid_drop(self.proj(y))
+
+        # type(y):<class 'torch.Tensor'>  shape:torch.Size([128, 90, 128])
+        # logger.info(f"Output projection type(y):{type(y)}  shape:{y.shape}")
+
         return y
 
 class Block(nn.Module):
@@ -118,6 +126,7 @@ class Block(nn.Module):
         )
 
     def forward(self, x):
+        # logger.info(f"forward")
         x = x + self.attn(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
@@ -177,6 +186,7 @@ class GPT(nn.Module):
             module.weight.data.fill_(1.0)
 
     def configure_optimizers(self, train_config):
+        logger.info(f"configure_optimizers")
         """
         This long function is unfortunately doing something very simple and is being very defensive:
         We are separating out all parameters of the model into two buckets: those that will experience
@@ -226,6 +236,7 @@ class GPT(nn.Module):
 
     # state, action, and return
     def forward(self, states, actions, targets=None, rtgs=None, timesteps=None):
+        # logger.info(f"forward")
         # states: (batch, block_size, 4*84*84)
         # actions: (batch, block_size, 1)
         # targets: (batch, block_size, 1)
@@ -284,6 +295,9 @@ class GPT(nn.Module):
             logits = logits # for completeness
         else:
             raise NotImplementedError()
+
+        # Logits type(logits):<class 'torch.Tensor'>  shape:torch.Size([128, 30, 4])
+        # logger.info(f"Logits type(logits):{type(logits)}  shape:{logits.shape}")
 
         # if we are given some desired targets also calculate the loss
         loss = None

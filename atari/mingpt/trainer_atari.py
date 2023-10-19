@@ -237,10 +237,10 @@ class Trainer:
                 env.render()
 
                 # Visualize attention head
-                mask_single_policy = True
-                mask_single_value = True
-                logger.info("visualize_attention_head")
-                visualize_attention_head(self.model, mask_single_policy, mask_single_value)
+                # mask_single_policy = True
+                # mask_single_value = True
+                # logger.info("visualize_attention_head")
+                # visualize_attention_head(self.model, mask_single_policy, mask_single_value)
                 #-----------------------------------------
 
                 action = sampled_action.cpu().numpy()[0,-1]

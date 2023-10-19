@@ -19,6 +19,7 @@ def min_max(x, mins, maxs, axis=None):
     result = (x - mins)/(maxs - mins)
     return result
 
+
 # See model_atari.py GPT
 def visualize_attention_head(gpt_model:GPT, mask_single_p:bool=True, mask_single_v:bool=True):
     if (mask_single_p and mask_single_v):
@@ -30,7 +31,7 @@ def visualize_attention_head(gpt_model:GPT, mask_single_p:bool=True, mask_single
     model_atts_v = []
 
     if (mask_single_p or mask_double):
-        sy, sx, sc = gpt_model.visualizer.shape
+        # sy, sx, sc = gpt_model.visualizer.shape
         # att_p_map = np.zeros((sy, sx))
         model_att_p = gpt_model.att_p_sig5.cpu()
         model_att_p = model_att_p.numpy()
